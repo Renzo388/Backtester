@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Backtester ABC Elliott</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#F5F2ED;color:#1a1a1a;font-size:15px}
+header{background:#1a1a2e;color:#fff;padding:16px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100}
+header h1{font-size:18px;font-weight:600}
+header span{font-size:12px;opacity:0.6;margin-left:auto}
+.tabs{display:flex;background:#fff;border-bottom:1px solid #E5E0D8;overflow-x:auto;position:sticky;top:57px;z-index:99}
+.tab{flex:1;min-width:80px;padding:14px 8px;text-align:center;font-size:12px;font-weight:500;color:#888;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+.tab.active{color:#1a1a2e;border-bottom-color:#1a1a2e}
+.tab svg{display:block;margin:0 auto 4px;width:20px;height:20px}
+.section{display:none;padding:16px}
+.section.visible{display:block}
+.card{background:#fff;border-radius:12px;padding:16px;margin-bottom:12px;border:1px solid #E5E0D8}
+.card-title{font-size:14px;font-weight:600;margin-bottom:12px;color:#1a1a2e}
+.form-group{margin-bottom:10px}
+.form-group label{font-size:12px;color:#666;display:block;margin-bottom:4px}
+.form-group input,.form-group select{width:100%;padding:10px 12px;border:1px solid #D5D0C8;border-radius:8px;font-size:14px;background:#fff;color:#1a1a1a;-webkit-appearance:none}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.btn-primary{width:100%;padding:12px;background:#1a1a2e;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;margin-top:4px}
+.metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.metric-card{background:#fff;border-radius:12px;padding:14px;text-align:center;border:1px solid #E5E0D8}
+.metric-val{font-size:22px;font-weight:600}
+.metric-lbl{font-size:11px;color:#888;margin-top:3px}
+.op-item{background:#fff;border-radius:10px;padding:12px 14px;margin-bottom:8px;border:1px solid #E5E0D8}
+.op-header{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.op-body{font-size:12px;color:#888;display:flex;gap:12px;flex-wrap:wrap}
+.badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:500}
+.b-long{background:#E1F5EE;color:#2C4A1E}
+.b-short{background:#FEE2E2;color:#991B1B}
+.b-win{background:#EAF3DE;color:#3B6D11}
+.b-loss{background:#FEE2E2;color:#991B1B}
+.b-open{background:#E6F1FB;color:#185FA5}
+.pnl-pos{color:#2C4A1E;font-weight:600}
+.pnl-neg{color:#991B1B;font-weight:600}
+.btn-del{background:none;border:none;color:#ccc;font-size:20px;cursor:pointer;margin-left:auto}
+.empty{text-align:center;padding:32px;color:#aaa;font-size:14px}
+.chart-wrap{position:relative;height:200px;margin-top:8px}
+.stat-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #F0EDE8;font-size:14px}
+.stat-row:last-child{border-bottom:none}
+.stat-label{color:#888}
+.racha-row{display:flex;gap:16px;font-size:14px;padding:8px 0}
+.section-label{font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin:16px 0 8px}
+</style>
+</head>
+<body>
+
+<header>
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+  <h1>Backtester ABC</h1>
+  <span id="fecha-hoy"></span>
+</header>
+
+<div class="tabs">
+  <button class="tab active" onclick="showTab('ops',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+    Operaciones
+  </button>
+  <button class="tab" onclick="showTab('stats',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><bar x="18" y="3" width="4" height="18"/><rect x="10" y="8" width="4" height="13"/><rect x="2" y="13" width="4" height="8"/></svg>
+    Stats
+  </button>
+  <button class="tab" onclick="showTab('equity',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+    Equity
+  </button>
+</div>
+
+<!-- OPERACIONES -->
+<div id="tab-ops" class="section visible">
+  <div class="card">
+    <div class="card-title">Nueva operación</div>
+    <div class="row2">
+      <div class="form-group"><label>Fecha</label><input type="date" id="op-fecha"></div>
+      <div class="form-group"><label>Cripto</label><input id="op-cripto" placeholder="BTC"></div>
+    </div>
+    <div class="row3">
+      <div class="form-group"><label>Dirección</label>
+        <select id="op-dir"><option>LONG</option><option>SHORT</option></select></div>
+      <div class="form-group"><label>Temporalidad</label>
+        <select id="op-tf"><option>15M</option><option>1H</option><option>4H</option></select></div>
+      <div class="form-group"><label>Capital (USDT)</label>
+        <input type="number" id="op-capital" placeholder="1000"></div>
+    </div>
+    <div class="row3">
+      <div class="form-group"><label>Apalancamiento</label>
+        <select id="op-lev">
+          <option value="2">2x</option><option value="3">3x</option><option value="5">5x</option>
+          <option value="10" selected>10x</option><option value="20">20x</option>
+          <option value="25">25x</option><option value="50">50x</option><option value="100">100x</option>
+        </select></div>
+      <div class="form-group"><label>Nivel A (entrada)</label>
+        <input type="number" id="op-entrada" placeholder="60000"></div>
+      <div class="form-group"><label>Precio salida</label>
+        <input type="number" id="op-salida" placeholder="61200"></div>
+    </div>
+    <div class="form-group"><label>Resultado</label>
+      <select id="op-result"><option>Win</option><option>Loss</option><option>Abierta</option></select></div>
+    <button class="btn-primary" onclick="addOp()">+ Agregar operación</button>
+  </div>
+
+  <div class="section-label">Historial (<span id="op-count">0</span>)</div>
+  <div id="op-list"></div>
+</div>
+
+<!-- STATS -->
+<div id="tab-stats" class="section">
+  <div class="metric-grid" id="stats-metrics"></div>
+
+  <div class="card">
+    <div class="card-title">Por temporalidad</div>
+    <div id="stats-tf"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Por dirección</div>
+    <div id="stats-dir"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Rachas</div>
+    <div id="stats-rachas"></div>
+  </div>
+</div>
+
+<!-- EQUITY -->
+<div id="tab-equity" class="section">
+  <div class="card">
+    <div class="card-title">Curva de equity</div>
+    <div class="chart-wrap"><canvas id="equity-chart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">P&L por operación</div>
+    <div id="pnl-bars" style="display:flex;align-items:flex-end;gap:3px;height:100px;margin-top:8px"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+document.getElementById('fecha-hoy').textContent = new Date().toLocaleDateString('es-AR',{day:'numeric',month:'short',year:'numeric'});
+document.getElementById('op-fecha').valueAsDate = new Date();
+
+let ops = JSON.parse(localStorage.getItem('abc-ops') || '[]');
+
+function save() { localStorage.setItem('abc-ops', JSON.stringify(ops)); }
+
+function calcPnl(op) {
+  if(op.result==='Abierta'||!op.salida) return 0;
+  const diff = op.dir==='LONG'
+    ? (op.salida - op.entrada) / op.entrada
+    : (op.entrada - op.salida) / op.entrada;
+  return parseFloat((diff * op.capital * op.lev).toFixed(2));
+}
+
+function showTab(id, btn) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('visible'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('visible');
+  btn.classList.add('active');
+  if(id==='stats') renderStats();
+  if(id==='equity') renderEquity();
+}
+
+function renderOps() {
+  document.getElementById('op-count').textContent = ops.length;
+  const list = document.getElementById('op-list');
+  if(!ops.length){list.innerHTML='<div class="empty">Sin operaciones — agregá la primera arriba</div>';return;}
+  list.innerHTML = [...ops].reverse().map((op,ri)=>{
+    const i = ops.length-1-ri;
+    const pnl = calcPnl(op);
+    const stop = op.dir==='LONG' ? op.entrada*(1-0.01) : op.entrada*(1+0.01);
+    return `<div class="op-item">
+      <div class="op-header">
+        <span class="badge ${op.dir==='LONG'?'b-long':'b-short'}">${op.dir}</span>
+        <strong>${op.cripto||'—'}</strong>
+        <span style="color:#888;font-size:13px">${op.tf}</span>
+        <span style="color:#888;font-size:13px">${op.lev}x</span>
+        <span class="badge ${op.result==='Win'?'b-win':op.result==='Loss'?'b-loss':'b-open'}">${op.result}</span>
+        <button class="btn-del" onclick="delOp(${i})">×</button>
+      </div>
+      <div class="op-body">
+        <span>Entrada: $${op.entrada?.toLocaleString()}</span>
+        <span>Stop: $${stop.toFixed(2)}</span>
+        <span>Salida: ${op.salida?'$'+op.salida.toLocaleString():'—'}</span>
+        <span>Capital: $${op.capital}</span>
+        <span>Pos: $${(op.capital*op.lev).toLocaleString()}</span>
+        ${op.result!=='Abierta'?`<span class="${pnl>=0?'pnl-pos':'pnl-neg'}">${pnl>=0?'+':''}$${pnl.toFixed(2)}</span>`:''}
+      </div>
+      <div style="font-size:11px;color:#bbb;margin-top:4px">${op.fecha}</div>
+    </div>`;
+  }).join('');
+}
+
+function addOp() {
+  const entrada = parseFloat(document.getElementById('op-entrada').value);
+  if(!entrada){alert('Ingresá el nivel de A');return;}
+  ops.push({
+    fecha: document.getElementById('op-fecha').value,
+    cripto: document.getElementById('op-cripto').value||'—',
+    dir: document.getElementById('op-dir').value,
+    tf: document.getElementById('op-tf').value,
+    capital: parseFloat(document.getElementById('op-capital').value)||1000,
+    lev: parseFloat(document.getElementById('op-lev').value)||10,
+    entrada,
+    salida: parseFloat(document.getElementById('op-salida').value)||0,
+    result: document.getElementById('op-result').value,
+  });
+  save();
+  ['op-cripto','op-entrada','op-salida'].forEach(id=>document.getElementById(id).value='');
+  renderOps();
+}
+
+function delOp(i){if(confirm('¿Eliminar esta operación?')){ops.splice(i,1);save();renderOps();}}
+
+function renderStats() {
+  const cerradas = ops.filter(o=>o.result!=='Abierta');
+  const wins = cerradas.filter(o=>o.result==='Win');
+  const losses = cerradas.filter(o=>o.result==='Loss');
+  const winrate = cerradas.length ? Math.round(wins.length/cerradas.length*100) : 0;
+  const pnlTotal = cerradas.reduce((a,o)=>a+calcPnl(o),0);
+  const avgWin = wins.length ? wins.reduce((a,o)=>a+calcPnl(o),0)/wins.length : 0;
+  const avgLoss = losses.length ? losses.reduce((a,o)=>a+calcPnl(o),0)/losses.length : 0;
+  const rr = avgLoss!==0 ? Math.abs(avgWin/avgLoss).toFixed(2) : '—';
+
+  document.getElementById('stats-metrics').innerHTML = `
+    <div class="metric-card"><div class="metric-val">${ops.length}</div><div class="metric-lbl">Operaciones</div></div>
+    <div class="metric-card"><div class="metric-val" style="color:${winrate>=50?'#2C4A1E':'#991B1B'}">${winrate}%</div><div class="metric-lbl">Win rate</div></div>
+    <div class="metric-card"><div class="metric-val" style="color:${pnlTotal>=0?'#2C4A1E':'#991B1B'}">${pnlTotal>=0?'+':''}$${pnlTotal.toFixed(0)}</div><div class="metric-lbl">P&L total</div></div>
+    <div class="metric-card"><div class="metric-val">${rr}</div><div class="metric-lbl">Ratio R/R</div></div>
+    <div class="metric-card"><div class="metric-val" style="color:#2C4A1E">+$${avgWin.toFixed(0)}</div><div class="metric-lbl">Ganancia media</div></div>
+    <div class="metric-card"><div class="metric-val" style="color:#991B1B">$${avgLoss.toFixed(0)}</div><div class="metric-lbl">Pérdida media</div></div>
+  `;
+
+  const tfs=['15M','1H','4H'];
+  document.getElementById('stats-tf').innerHTML = tfs.map(tf=>{
+    const sub=cerradas.filter(o=>o.tf===tf);
+    if(!sub.length) return `<div class="stat-row"><span class="stat-label">${tf}</span><span>Sin datos</span></div>`;
+    const w=sub.filter(o=>o.result==='Win').length;
+    const wr=Math.round(w/sub.length*100);
+    const pnl=sub.reduce((a,o)=>a+calcPnl(o),0);
+    return `<div class="stat-row"><span class="stat-label">${tf} (${sub.length} ops)</span><span style="color:${wr>=50?'#2C4A1E':'#991B1B'}">${wr}% win</span><span style="color:${pnl>=0?'#2C4A1E':'#991B1B'};font-weight:600">${pnl>=0?'+':''}$${pnl.toFixed(0)}</span></div>`;
+  }).join('');
+
+  const dirs=['LONG','SHORT'];
+  document.getElementById('stats-dir').innerHTML = dirs.map(dir=>{
+    const sub=cerradas.filter(o=>o.dir===dir);
+    if(!sub.length) return `<div class="stat-row"><span class="stat-label">${dir}</span><span>Sin datos</span></div>`;
+    const w=sub.filter(o=>o.result==='Win').length;
+    const wr=Math.round(w/sub.length*100);
+    const pnl=sub.reduce((a,o)=>a+calcPnl(o),0);
+    return `<div class="stat-row"><span class="badge ${dir==='LONG'?'b-long':'b-short'}">${dir}</span><span style="color:${wr>=50?'#2C4A1E':'#991B1B'}">${wr}% win (${sub.length})</span><span style="color:${pnl>=0?'#2C4A1E':'#991B1B'};font-weight:600">${pnl>=0?'+':''}$${pnl.toFixed(0)}</span></div>`;
+  }).join('');
+
+  let mxW=0,mxL=0,cW=0,cL=0;
+  cerradas.forEach(o=>{
+    if(o.result==='Win'){cW++;cL=0;mxW=Math.max(mxW,cW);}
+    else{cL++;cW=0;mxL=Math.max(mxL,cL);}
+  });
+  document.getElementById('stats-rachas').innerHTML = `
+    <div class="racha-row">
+      <span>Mayor racha ganadora: <strong style="color:#2C4A1E">${mxW} seguidas</strong></span>
+    </div>
+    <div class="racha-row">
+      <span>Mayor racha perdedora: <strong style="color:#991B1B">${mxL} seguidas</strong></span>
+    </div>`;
+}
+
+let eqChart = null;
+function renderEquity() {
+  const cerradas = ops.filter(o=>o.result!=='Abierta');
+  if(!cerradas.length) return;
+  let eq=0;
+  const labels=cerradas.map((_,i)=>`Op ${i+1}`);
+  const data=cerradas.map(o=>{eq+=calcPnl(o);return parseFloat(eq.toFixed(2));});
+  if(eqChart) eqChart.destroy();
+  eqChart=new Chart(document.getElementById('equity-chart'),{
+    type:'line',
+    data:{labels,datasets:[{data,borderColor:'#1a1a2e',backgroundColor:'rgba(26,26,46,0.08)',borderWidth:2,pointRadius:3,fill:true,tension:0.3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'$'+v}},x:{grid:{display:false}}}}
+  });
+  const pnls=cerradas.map(o=>calcPnl(o));
+  const maxA=Math.max(...pnls.map(Math.abs),1);
+  document.getElementById('pnl-bars').innerHTML=pnls.map(p=>{
+    const h=Math.round(Math.abs(p)/maxA*90)+4;
+    return `<div title="${p>=0?'+':''}$${p}" style="flex:1;background:${p>=0?'#2C4A1E':'#E24B4A'};border-radius:3px 3px 0 0;height:${h}px;opacity:0.85"></div>`;
+  }).join('');
+}
+
+renderOps();
+</script>
+</body>
+</html>
